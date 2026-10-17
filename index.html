@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Johnny Builds to Mars — an interactive storybook for curious explorers.">
+  <title>Johnny Builds to Mars</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    @media (max-height: 600px) and (orientation: landscape) {
+      body { display: block; }
+      .book-shell { min-height: 100vh; padding: 12px 24px 10px; }
+      .story-stage { height: calc(100vh - 94px); min-height: 350px; }
+      .story-page { grid-template-columns: 38% 62%; grid-template-rows: 1fr; gap: 8px; }
+      .hero-illustration, .space-scene, .rocket-workshop, .launch-scene, .drag-scene, .landing-scene, .final-scene { height: 100%; min-height: 0; border-radius: 24px; }
+      h1 { font-size: 52px; margin: 8px 0 14px; }
+      h2 { font-size: 43px; margin: 8px 0 14px; }
+      .lede, .page-copy > p:not(.eyebrow) { font-size: 14px; margin-bottom: 12px; }
+      .book-nav { padding-top: 5px; }
+      .sound-note { display: none; }
+    }
+    .effect-dot { position: absolute; width: 12px; height: 12px; margin: -6px; border-radius: 50%; background: var(--yellow); border: 2px solid var(--ink); pointer-events: none; z-index: 9; animation: burstDot .8s ease-out forwards; }
+    .effect-dot:nth-child(3n) { background: var(--coral); }
+    .effect-dot:nth-child(3n + 1) { background: #8ddfd2; }
+    .trail-dot { width: 8px; height: 8px; border: 0; box-shadow: 0 0 12px #ffe38c; animation-duration: 1.1s; }
+    .ripple { width: 30px; height: 30px; border: 4px solid var(--yellow); background: transparent; animation: ripple .75s ease-out forwards; }
+    .scene-flash { animation: sceneFlash .45s ease-out; }
+    .planet-pop { animation: planetPop .55s cubic-bezier(.2,1.4,.4,1); }
+    .rocket-build { animation: rocketBuild .65s cubic-bezier(.2,1.4,.4,1); }
+    .dog-bounce { animation: dogBounce .55s ease; }
+    .ground-stomp { animation: groundStomp .5s ease; }
+    .liftoff { animation: launchShake .55s ease; }
+    .final-celebrate { animation: celebrate .75s cubic-bezier(.2,1.4,.4,1); }
+    @keyframes burstDot { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx),var(--dy)) scale(.1) rotate(180deg); } }
+    @keyframes ripple { 0% { opacity: .9; transform: translate(-50%,-50%) scale(.2); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(4); } }
+    @keyframes sceneFlash { 0%,100% { filter: none; } 45% { filter: brightness(1.22) saturate(1.25); } }
+    @keyframes planetPop { 0%,100% { transform: scale(1); } 45% { transform: scale(1.14) rotate(-5deg); } }
+    @keyframes rocketBuild { 0%,100% { transform: rotate(9deg) scale(1); } 30% { transform: rotate(-8deg) scale(1.12); } 60% { transform: rotate(4deg) scale(1.04); } }
+    @keyframes dogBounce { 0%,100% { transform: rotate(-12deg) translateY(-5px); } 45% { transform: rotate(8deg) translateY(-16px); } }
+    @keyframes groundStomp { 0%,100% { transform: translateY(0); } 35% { transform: translateY(7px); } }
+    @keyframes launchShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px) rotate(-1deg); } 75% { transform: translateX(5px) rotate(1deg); } }
+    @keyframes celebrate { 0%,100% { transform: scale(1) rotate(0); } 35% { transform: scale(1.18) rotate(-10deg); } 70% { transform: scale(1.08) rotate(8deg); } }
+    .blueprint-scene { height: 540px; position: relative; overflow: hidden; border-radius: 36px; background: #f2c978; padding: 36px 24px 24px; }
+    .blueprint-scene:before { content: ''; position: absolute; inset: 18px; border: 3px dashed #b37b59aa; border-radius: 18px; pointer-events: none; }
+    #rocketBlueprint { display: block; width: 100%; height: calc(100% - 8px); border: 4px solid var(--ink); border-radius: 10px; background: #fff5ce; cursor: crosshair; touch-action: none; position: relative; z-index: 1; }
+    .blueprint-label { position: absolute; z-index: 2; left: 40px; top: 25px; color: var(--purple); font: 800 12px/1.05 Georgia; transform: rotate(-4deg); pointer-events: none; }
+    .blueprint-label b { color: var(--coral); font-size: 16px; }
+    .draw-stage-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 10px; max-width: 300px; }
+    .draw-stage, .clear-blueprint { border: 3px solid var(--ink); border-radius: 13px; padding: 8px 9px; background: white; color: var(--ink); font: 800 10px Nunito; cursor: pointer; transition: .2s; }
+    .draw-stage.active, .draw-stage:hover { background: var(--yellow); transform: translateY(-2px); }
+    .clear-blueprint { background: transparent; border-color: #bcae9c; color: #9b8b7c; }
+    .draw-hint { position: absolute; bottom: 22px; right: 34px; z-index: 2; background: var(--yellow); border: 3px solid var(--ink); border-radius: 12px; padding: 7px 11px; font: 800 11px Nunito; transform: rotate(-3deg); pointer-events: none; }
+    .draw-message { left: 11%; bottom: 14%; z-index: 3; }
+    .drawn-rocket-canvas { position: absolute; pointer-events: none; z-index: 5; }
+    .big-rocket canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+    .launch-rocket canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; opacity: .9; }
+    #landedRocketCanvas { position: absolute; width: 100px; height: 150px; right: 18%; bottom: 21%; z-index: 3; transform: rotate(9deg); pointer-events: none; }
+    #homeRocketCanvas { position: absolute; width: 100px; height: 150px; left: 57%; top: 35%; z-index: 3; transform: rotate(20deg); pointer-events: none; }
+    @media (max-width: 760px) { .blueprint-scene { height: 100%; min-height: 330px; border-radius: 27px; padding: 25px 15px 15px; } .draw-stage-buttons { margin: 7px 0; } .draw-stage, .clear-blueprint { padding: 6px 7px; font-size: 9px; } .draw-hint { bottom: 14px; right: 18px; } }
+  </style>
+  <style>
+    .constellation-map { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; overflow: visible; }
+    .constellation-map polyline { fill: none; stroke: var(--yellow); stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 2; filter: drop-shadow(0 0 4px #ffe38c); transition: .4s; }
+    .constellation-star { z-index: 4; cursor: pointer; transition: .25s; }
+    .constellation-star:hover, .constellation-star.connected { transform: scale(1.35); color: #fff3a6; }
+    .constellation-star.wrong { animation: wrongStar .35s ease; color: var(--coral); }
+    .constellation-progress { position: absolute; left: 9%; top: 8%; z-index: 5; background: #fff8df; border: 3px solid var(--ink); border-radius: 13px; padding: 8px 12px; color: var(--purple); font: 800 11px Nunito; transform: rotate(-3deg); }
+    @keyframes wrongStar { 0%,100% { transform: translateX(0); } 35% { transform: translateX(-7px); } 70% { transform: translateX(7px); } }
+  </style>
+</head>
+<body>
+  <main class="book-shell" aria-label="Johnny Builds to Mars interactive storybook">
+    <header class="topbar">
+      <div class="brand-mark" aria-label="Johnny Builds to Mars">
+        <span class="brand-star">✦</span>
+        <span>JOHNNY<br><b>BUILDS TO MARS</b></span>
+      </div>
+      <div class="page-count"><span id="pageNumber">1</span> <span class="page-slash">/</span> 8</div>
+    </header>
+
+    <section class="story-stage" id="storyStage">
+      <div class="scribble scribble-one"></div><div class="scribble scribble-two"></div>
+
+      <article class="story-page active" data-page="0" data-title="The big idea">
+        <div class="intro-copy">
+          <p class="eyebrow">A story you can touch</p>
+          <h1>Johnny<br><span>Builds to Mars</span></h1>
+          <p class="lede">Johnny has a plan that is<br>out of this world.</p>
+          <button class="start-button" id="startButton"><span>START</span><i>→</i></button>
+          <p class="tap-note">tap to begin your mission</p>
+        </div>
+        <div class="hero-illustration" aria-hidden="true">
+          <div class="sun"></div><div class="cloud cloud-a"></div><div class="cloud cloud-b"></div>
+          <div class="hill hill-back"></div><div class="hill hill-front"></div>
+          <div class="astronaut hero-johnny"><div class="helmet"><span></span></div><div class="body"></div><div class="pack"></div><div class="boot boot-a"></div><div class="boot boot-b"></div></div>
+          <div class="rocket mini-rocket"><div class="rocket-window"></div><div class="rocket-fin fin-a"></div><div class="rocket-fin fin-b"></div><div class="flame"></div></div>
+          <div class="ground-doodle"></div>
+        </div>
+      </article>
+
+      <article class="story-page" data-page="1">
+        <div class="page-copy"><p class="eyebrow">Chapter 1 · The destination</p><h2>Make a<br><span>star map!</span></h2><p>Connect the three stars in order, then tap Mars to light up Johnny's route.</p><span class="action-pill">tap 1 · 2 · 3, then Mars</span></div>
+        <div class="space-scene mars-scene" id="marsScene" role="button" tabindex="0" aria-label="Tap Mars">
+          <div class="big-moon moon-earth"></div><svg class="constellation-map" viewBox="0 0 100 100" aria-hidden="true"><polyline id="constellationPath" points="" /></svg><div class="star constellation-star s1" data-constellation="1" role="button" tabindex="0" aria-label="Star 1">✦</div><div class="star constellation-star s2" data-constellation="2" role="button" tabindex="0" aria-label="Star 2">✦</div><div class="star constellation-star s3" data-constellation="3" role="button" tabindex="0" aria-label="Star 3">✦</div><div class="star s4">✦</div>
+          <div class="mars" id="mars"><span class="mars-crater c1"></span><span class="mars-crater c2"></span><span class="mars-crater c3"></span></div><div class="orbit"></div>
+          <div class="astronaut floating-johnny"><div class="helmet"><span></span></div><div class="body"></div><div class="pack"></div><div class="boot boot-a"></div><div class="boot boot-b"></div></div>
+          <div class="constellation-progress" id="constellationProgress">STAR MAP 0 / 3</div><div class="scene-bubble" id="marsMessage">Connect the stars first!</div>
+        </div>
+      </article>
+
+      <article class="story-page" data-page="2">
+        <div class="page-copy"><p class="eyebrow">Chapter 2 · Your blueprint</p><h2>Draw a<br><span>rocket!</span></h2><p>Make the rocket Johnny will fly. Draw one part at a time: the body, nose cone, and fin.</p><div class="draw-stage-buttons"><button class="draw-stage active" data-draw-stage="body">1 · BODY</button><button class="draw-stage" data-draw-stage="nose">2 · NOSE</button><button class="draw-stage" data-draw-stage="fin">3 · FIN</button></div><button class="clear-blueprint" id="clearBlueprint">CLEAR BLUEPRINT</button></div>
+        <div class="blueprint-scene" id="blueprintScene"><div class="blueprint-label">JOHNNY'S<br><b>ROCKET PLAN</b></div><canvas id="rocketBlueprint" width="700" height="420" aria-label="Draw your rocket on the blueprint"></canvas><div class="draw-message scene-bubble" id="drawMessage">Your rocket is ready to build!</div><div class="draw-hint" id="drawHint">Draw the body first!</div></div>
+      </article>
+
+      <article class="story-page" data-page="3">
+        <div class="page-copy"><p class="eyebrow">Chapter 3 · The garage</p><h2>Build a<br><span>rocket!</span></h2><p>Johnny builds in the garage while his dog watches with one raised eyebrow.</p><span class="action-pill">tap the rocket</span></div>
+        <div class="rocket-workshop" id="rocketScene" role="button" tabindex="0" aria-label="Tap the rocket to assemble it">
+          <div class="tool tool-one">✚</div><div class="tool tool-two">⚙</div><div class="blueprint">YOUR<br><b>DESIGN</b></div><div class="garage-dog" id="garageDog" role="button" tabindex="0" aria-label="Tap the dog">●<span>hmm.</span></div>
+          <div class="rocket big-rocket" id="bigRocket"><div class="nose"></div><div class="rocket-window"></div><div class="rocket-door"></div><div class="rocket-fin fin-a"></div><div class="rocket-fin fin-b"></div><div class="flame"></div><div class="smoke smoke-a"></div><div class="smoke smoke-b"></div><canvas id="garageRocketCanvas" width="112" height="270" aria-label="Your rocket drawing"></canvas></div>
+          <div class="scene-bubble" id="rocketMessage">Click! Clack! Your rocket is built!</div>
+        </div>
+      </article>
+
+      <article class="story-page" data-page="4">
+        <div class="page-copy"><p class="eyebrow">Chapter 4 · Lift-off</p><h2>Hold tight.<br><span>Launch!</span></h2><p>Press and hold until the meter fills up. Johnny is counting down with you.</p></div>
+        <div class="launch-scene">
+          <div class="countdown" id="countdown">3... 2... 1...</div><div class="launch-rocket" id="launchRocket"><div class="nose"></div><div class="rocket-window"></div><div class="rocket-fin fin-a"></div><div class="rocket-fin fin-b"></div><div class="flame"></div><canvas id="launchRocketCanvas" width="100" height="240" aria-label="Your rocket launching"></canvas></div>
+          <div class="launch-stars">✦　✧　✦　✧　✦</div><div class="launch-pad"></div>
+          <button class="launch-button" id="launchButton">HOLD TO LAUNCH</button><div class="progress-track"><div id="launchProgress"></div></div>
+        </div>
+      </article>
+
+      <article class="story-page" data-page="5">
+        <div class="page-copy"><p class="eyebrow">Chapter 4 · Through space</p><h2>Make a<br><span>star trail.</span></h2><p>Drag the stars around Johnny’s rocket and paint a path through the dark.</p><span class="action-pill">drag the stars</span></div>
+        <div class="drag-scene" id="dragScene"><div class="planet-small"></div><div class="trail-line"></div><div class="star draggable" style="left:14%;top:24%" data-star="1">✦</div><div class="star draggable" style="left:74%;top:22%" data-star="2">✦</div><div class="star draggable" style="left:62%;top:70%" data-star="3">✦</div><div class="star draggable" style="left:25%;top:76%" data-star="4">✦</div><div class="tiny-rocket"><div class="rocket-window"></div><div class="flame"></div></div><div class="scene-bubble" id="starMessage">Leave a twinkle trail!</div></div>
+      </article>
+
+      <article class="story-page" data-page="6">
+        <div class="page-copy"><p class="eyebrow">Chapter 5 · Touchdown</p><h2>Hello,<br><span>Mars!</span></h2><p>Johnny has landed. Tap the ground to wake up the red planet.</p><span class="action-pill">tap the ground</span></div>
+        <div class="landing-scene" id="landingScene" role="button" tabindex="0" aria-label="Tap the Mars ground"><div class="mars-horizon"></div><div class="landing-stars">✦　✧　✦</div><div class="landing-rock rock-a"></div><div class="landing-rock rock-b"></div><div class="astronaut landing-johnny"><div class="helmet"><span></span></div><div class="body"></div><div class="pack"></div><div class="boot boot-a"></div><div class="boot boot-b"></div></div><canvas id="landedRocketCanvas" width="100" height="150" aria-label="Your rocket landed on Mars"></canvas><div class="ground-message" id="groundMessage">BOOM! Your rocket made it!</div></div>
+      </article>
+
+      <article class="story-page" data-page="7">
+        <div class="page-copy final-copy"><p class="eyebrow">The end · For now</p><h2>Uh-oh...<br><span>no snacks.</span></h2><p>Johnny made it to Mars, but he forgot the most important mission supply. Tap Johnny to make a promise for next time.</p><button class="restart-button" id="restartButton">READ AGAIN ↻</button></div>
+        <div class="final-scene" id="finalScene" role="button" tabindex="0" aria-label="Tap Johnny"><div class="snack-bag">🥪</div><div class="final-stars">✦　✧　✦　✧　✦</div><div class="astronaut final-johnny"><div class="helmet"><span></span></div><div class="body"></div><div class="pack"></div><div class="boot boot-a"></div><div class="boot boot-b"></div></div><canvas id="homeRocketCanvas" width="100" height="150" aria-label="Your rocket flying home"></canvas><div class="final-message" id="finalMessage">Next time: pack snacks!</div></div>
+      </article>
+    </section>
+
+    <nav class="book-nav" aria-label="Story navigation"><button id="prevButton" aria-label="Previous page">← <span>BACK</span></button><div class="dots" id="dots"></div><button id="nextButton" aria-label="Next page"><span>NEXT</span> →</button></nav>
+    <p class="sound-note" id="soundNote">sound on · tap or drag to explore</p>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
